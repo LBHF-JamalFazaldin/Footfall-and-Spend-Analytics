@@ -1,2 +1,2 @@
-# Personal-Repo
-This Repo is my first start at using a repo for work based projects, so please do not mind the mess I might potentially create.
+# Footfall Data
+This is a repositry for all scripts related to footfall.
