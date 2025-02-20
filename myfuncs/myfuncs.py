@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 import inspect as insp
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine
 from IPython.display import display as original_display
 
 # Database credentials
@@ -97,10 +97,13 @@ def unique_values(df, display_df=True):
 # Function to validate the data in a DataFrame
 def validate_data(df, show_counts=True):
     try:
+        # print 
         df_name = get_var_name(df)
         print(f'#########################################################################################################################################################################################\nDataFrame: {df_name}')
+        
         # Snapshot the dataset
         display(df)
+        
         # Check for unique values
         unique_counts = pd.DataFrame(df.nunique())
         unique_counts = unique_counts.reset_index().rename(columns={0:'No. of Unique Values', 'index':'Field Name'})
@@ -108,6 +111,7 @@ def validate_data(df, show_counts=True):
         pd.set_option('display.max_rows', None)
         display(unique_counts)
         pd.reset_option('display.max_rows')
+        
         # Checking for duplicates
         duplicate_count = df.duplicated().sum()
         print("\nNumber of duplicate rows:")

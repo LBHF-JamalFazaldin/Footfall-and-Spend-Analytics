@@ -90,6 +90,8 @@ def detect_anomalies(df, **kwargs):
         if primary_key:
             if type(primary_key) is not list:
                 keywords = [primary_key]
+            else:
+                keywords = primary_key
             for keyword in keywords:
                 categories = categories + [f'{keyword}']
 
@@ -121,7 +123,7 @@ def agg_footfall_data(df, **kwargs):
     try:
         used_keys = {
             'primary_key','day_night',
-            'agg', 'footfall_type'
+            'agg', 'footfall_type','time_indicator'
         }
         redundant_kwargs = set(kwargs.keys()) - used_keys
         if redundant_kwargs:
@@ -131,13 +133,16 @@ def agg_footfall_data(df, **kwargs):
         if unused_keys:
             print(f'Missing kwargs: {unused_keys}\nThese args will be set to default values')
         
-        df = apply_features(df, time='time_indicator')
+        time_indicator = kwargs.get('time_indicator','time_indicator')
+        df = apply_features(df, time=time_indicator)
 
-        merge_list = ['day_name','week_name','day_night','count_date']
+        merge_list = [
+            'day_name','week_name','day_night','count_date'
+        ]
         new_categories = [
             'count_date','day_name','week_name','day_night',
             'corrected_ma_monthly','corrected_ma_weekly',
-            'corrected_value',
+            'corrected_value'
         ]
         
         primary_key = kwargs.get('primary_key')
