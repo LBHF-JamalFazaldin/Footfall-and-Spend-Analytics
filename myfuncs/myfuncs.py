@@ -1,5 +1,6 @@
+import os
 import pandas as pd
-import inspect
+import inspect as insp
 from sqlalchemy import create_engine, inspect
 from IPython.display import display as original_display
 
@@ -46,11 +47,24 @@ def header_list(df):
     except Exception as e:
         print(f'Error creating header list: {e}')
         return pd.DataFrame()
+    
+def read_directory(directory=False):
+    if directory == False:
+        directory = os.getcwd()
+        
+    files = os.listdir(directory)
+    
+    if directory == os.getcwd():
+        print(f"Your Current Directory is: {directory}")
+    else:
+        print(f"Directory being read is: {directory}")
+
+    print("Files in: %s\n" % (files))
 
 # Function to provide list for data sources as a DataFrame when conducting analysis
 def display(df):
     try:
-        frame = inspect.currentframe().f_back
+        frame = insp.currentframe().f_back
         name = "Unnamed DataFrame"
         for var_name, var_value in frame.f_locals.items():
             if var_value is df:
