@@ -9,6 +9,7 @@ def apply_features(df, date='count_date', **kwargs):
         df[date] = pd.to_datetime(df[date])
         df['year'] = df[date].dt.year
         df['day_name'] = df[date].dt.dayofweek
+        df['month'] = df[date].dt.month
 
         day_dict = {
             '0':['Monday','Weekday'],
@@ -71,45 +72,38 @@ def detect_anomalies(df, **kwargs):
     try:
         used_keys = {
             'footfall_type','day_night',
-            'agg','std','primary_key'
+            'agg','std','primary_key',
         }
         redundant_kwargs = set(kwargs.keys()) - used_keys
         if redundant_kwargs:
             print(f'Redundant kwargs: {redundant_kwargs}\n')
             return pd.DataFrame()
-        kwargs = {key: kwargs.get(key, f'default_value_{key}') for key in used_keys}
         
+        std = kwargs.get('std', 3)
         footfall_type = kwargs.get('footfall_type')
         agg = kwargs.get('agg')
-        categories = [
-            'count_date',f'{footfall_type}_{agg}',
-            'zscore','year','is_anomaly?',
-            'day_name','week_name','day_night'
+        
+        merge_list = ['year']
+        merge_list = [kwargs.get('day_night')] + merge_list if kwargs.get('day_night', False) else merge_list
+        merge_list = [kwargs.get('primary_key')] + merge_list if kwargs.get('primary_key', False) else merge_list
+        
+        categories = merge_list + [
+            'count_date',f'{footfall_type}_{agg}','zscore',
+            'is_anomaly?','day_name','week_name','month'
         ]
-        primary_key = kwargs.get('primary_key')
-        if primary_key:
-            if type(primary_key) is not list:
-                keywords = [primary_key]
-            else:
-                keywords = primary_key
-            for keyword in keywords:
-                categories = categories + [f'{keyword}']
-
-        std = kwargs.get('std', 3)
+        
         anomalies = df.copy()
-        anomalies['zscore'] = anomalies.groupby(keywords)[f'{footfall_type}_{agg}'].transform(zscore)
-        anomalies['is_anomaly?'] = (anomalies['zscore'] < -std) | (anomalies['zscore'] > std)
+        anomalies['zscore'] = anomalies.groupby(merge_list)[f'{footfall_type}_{agg}'].transform(zscore)
+        anomalies['is_anomaly?'] = (anomalies['zscore'].abs() > std)
         num_anomalies = anomalies['is_anomaly?'].sum()
         print(f'{num_anomalies} anomalies have been detected.')
 
         anomalies = anomalies[categories]
-        anomalies['moving_average'] = anomalies.groupby(keywords)[f'{footfall_type}_{agg}'].transform(lambda x: x.rolling(window=7).mean())
+        anomalies['moving_average'] = anomalies.groupby(merge_list)[f'{footfall_type}_{agg}'].transform(lambda x: x.rolling(window=7, min_periods=1).mean().round())
         anomalies['corrected_value'] = np.where(
             anomalies['is_anomaly?'],
             anomalies['moving_average'],anomalies[f'{footfall_type}_{agg}']
         )
-        anomalies['corrected_ma_monthly'] = anomalies.groupby(keywords)['corrected_value'].transform(lambda x: x.rolling(window=30).mean())
-        anomalies['corrected_ma_weekly'] = anomalies.groupby(keywords)['corrected_value'].transform(lambda x: x.rolling(window=7).mean())
 
         print('Anomalies have been flagged and corrected.\n')
         return anomalies
@@ -122,7 +116,7 @@ def agg_footfall_data(df, **kwargs):
     print('\nAggregating footfall data...')
     try:
         used_keys = {
-            'primary_key','day_night',
+            'primary_key','day_night','std',
             'agg', 'footfall_type','time_indicator'
         }
         redundant_kwargs = set(kwargs.keys()) - used_keys
@@ -137,24 +131,14 @@ def agg_footfall_data(df, **kwargs):
         df = apply_features(df, time=time_indicator)
 
         merge_list = [
-            'day_name','week_name','day_night','count_date'
+            'count_date','day_name','week_name'
         ]
-        new_categories = [
-            'count_date','day_name','week_name','day_night',
-            'corrected_ma_monthly','corrected_ma_weekly',
-            'corrected_value'
-        ]
-        
-        primary_key = kwargs.get('primary_key')
-        if primary_key:
-            if not isinstance(primary_key, list):
-                keywords = [primary_key]
-            for keyword in keywords:
-                merge_list = [f'{keyword}'] + merge_list
-                new_categories = new_categories + [f'{keyword}']
+        merge_list = [kwargs.get('day_night')] + merge_list if kwargs.get('day_night',False) else merge_list
+        merge_list = [kwargs.get('primary_key')] + merge_list if kwargs.get('primary_key',False) else merge_list
+        new_categories = merge_list + ['corrected_value']
         
         agg = kwargs.get('agg','sum')
-        agg_data = df.groupby(merge_list + ['year']).agg(
+        agg_data = df.groupby(merge_list + ['year','month']).agg(
             residents_sum = ('resident',f'{agg}'),
             workers_sum = ('worker',f'{agg}'),
             visitors_sum = ('visitor',f'{agg}')
@@ -162,11 +146,12 @@ def agg_footfall_data(df, **kwargs):
         agg_data = agg_data.reset_index()
         agg_data = agg_data.sort_values(
             ['count_date'],
-            ascending=False
+            ascending=True
         )
 
         default_values = ['residents','workers','visitors']
         footfall_type = kwargs.get('footfall_type', default_values)
+        std = kwargs.get('std',3)
         anomalies = {}
         i = 0
         for footfall in footfall_type:
@@ -174,9 +159,13 @@ def agg_footfall_data(df, **kwargs):
                 raise KeyError(f'Invalid footfall type: [{footfall}]')
         for footfall in footfall_type:
             i = i + 1
-            anomalies[f'{footfall}_z'] = detect_anomalies(agg_data,footfall_type=footfall,std=2.6,primary_key=primary_key,agg=agg)
+            anomalies[f'{footfall}_z'] = detect_anomalies(
+                agg_data,footfall_type=footfall,std=std,agg=agg,
+                day_night = kwargs.get('day_night', False),
+                primary_key=kwargs.get('primary_key', False)
+            )
             if i > len(footfall_type)-1:
-                new_categories = new_categories + ['year']
+                new_categories = new_categories + ['year','month']
             anomalies[f'{footfall}_z'] = anomalies[f'{footfall}_z'][new_categories]
 
         footfall_data = pd.merge(
@@ -187,20 +176,17 @@ def agg_footfall_data(df, **kwargs):
             anomalies['visitors_z'],
             how='left', on=merge_list,
         ).rename(columns={
-                'corrected_value':'corrected_value_visitors',
-                'corrected_ma_monthly':'corrected_ma_monthly_visitors',
-                'corrected_ma_weekly':'corrected_ma_weekly_visitors'
+                'corrected_value':'corrected_value_visitors'
             }
         )
+        
+        merge_list = ['year','month']
+        merge_list = [kwargs.get('day_night')] + merge_list if kwargs.get('day_night',False) else merge_list
+        merge_list = [kwargs.get('primary_key')] + merge_list if kwargs.get('primary_key',False) else merge_list
+        footfall_data['corrected_value_total'] = 0
         for footfall in footfall_type:
-            if footfall not in default_values:
-                raise KeyError(f'Invalid footfall type: [{footfall}]')
-        for footfall in footfall_type:
-            footfall_data['corrected_value_total'] = 0
             footfall_data['corrected_value_total'] = footfall_data['corrected_value_total'] + footfall_data[f'corrected_value_{footfall}']
         footfall_data['corrected_value_total'].fillna(0, inplace=True)
-        footfall_data['corrected_ma_monthly_total'] = footfall_data.groupby(keywords)['corrected_value_total'].transform(lambda x: x.rolling(window=30).mean())
-        footfall_data['corrected_ma_weekly_total'] = footfall_data.groupby(keywords)['corrected_value_total'].transform(lambda x: x.rolling(window=7).mean())
 
         print('Footfall Data Aggregated.\n')
         return footfall_data
@@ -239,11 +225,11 @@ def typical_footfall(footfall_data, start, end, **kwargs):
     footfall_data = agg_footfall_data(
         footfall_data,
         primary_key=primary_key,
-        agg=kwargs.get('agg','sum'),
+        agg=kwargs.get('agg', 'sum'),
         footfall_type=kwargs.get('footfall_type',['residents','workers','visitors'])
     )
         
-    if kwargs.get('day_night',False):
+    if kwargs.get('day_night', False):
         footfall_data = transform_to_daynight(footfall_data, primary_key=primary_key)
         averages = footfall_data.copy()
         averages = averages.groupby(['year','week_name',f'{primary_key}']).agg(
