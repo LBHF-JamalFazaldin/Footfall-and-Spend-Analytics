@@ -1,6 +1,7 @@
+import os
 import pandas as pd
-import inspect
-from sqlalchemy import create_engine, inspect
+import inspect as insp
+from sqlalchemy import create_engine
 from IPython.display import display as original_display
 
 # Database credentials
@@ -46,11 +47,24 @@ def header_list(df):
     except Exception as e:
         print(f'Error creating header list: {e}')
         return pd.DataFrame()
+    
+def read_directory(directory=False):
+    if directory == False:
+        directory = os.getcwd()
+        
+    files = os.listdir(directory)
+    
+    if directory == os.getcwd():
+        print(f"Your Current Directory is: {directory}")
+    else:
+        print(f"Directory being read is: {directory}")
+
+    print("Files in: %s\n" % (files))
 
 # Function to provide list for data sources as a DataFrame when conducting analysis
 def display(df):
     try:
-        frame = inspect.currentframe().f_back
+        frame = insp.currentframe().f_back
         name = "Unnamed DataFrame"
         for var_name, var_value in frame.f_locals.items():
             if var_value is df:
@@ -83,10 +97,13 @@ def unique_values(df, display_df=True):
 # Function to validate the data in a DataFrame
 def validate_data(df, show_counts=True):
     try:
+        # print 
         df_name = get_var_name(df)
         print(f'#########################################################################################################################################################################################\nDataFrame: {df_name}')
+        
         # Snapshot the dataset
         display(df)
+        
         # Check for unique values
         unique_counts = pd.DataFrame(df.nunique())
         unique_counts = unique_counts.reset_index().rename(columns={0:'No. of Unique Values', 'index':'Field Name'})
@@ -94,6 +111,7 @@ def validate_data(df, show_counts=True):
         pd.set_option('display.max_rows', None)
         display(unique_counts)
         pd.reset_option('display.max_rows')
+        
         # Checking for duplicates
         duplicate_count = df.duplicated().sum()
         print("\nNumber of duplicate rows:")
