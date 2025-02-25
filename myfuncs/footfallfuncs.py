@@ -150,23 +150,23 @@ def agg_footfall_data(df, **kwargs):
         )
 
         default_values = ['residents','workers','visitors']
-        footfall_type = kwargs.get('footfall_type', default_values)
+        footfall_types = kwargs.get('footfall_type', default_values)
         std = kwargs.get('std',3)
         anomalies = {}
         i = 0
-        for footfall in footfall_type:
-            if footfall not in default_values:
-                raise KeyError(f'Invalid footfall type: [{footfall}]')
-        for footfall in footfall_type:
+        for footfall_type in footfall_types:
+            if footfall_type not in default_values:
+                raise KeyError(f'Invalid footfall type: [{footfall_type}]')
+        for footfall_type in footfall_types:
             i = i + 1
-            anomalies[f'{footfall}_z'] = detect_anomalies(
-                agg_data,footfall_type=footfall,std=std,agg=agg,
+            anomalies[f'{footfall_type}_z'] = detect_anomalies(
+                agg_data,footfall_type=footfall_type,std=std,agg=agg,
                 day_night = kwargs.get('day_night', False),
                 primary_key=kwargs.get('primary_key', False)
             )
-            if i > len(footfall_type)-1:
-                new_categories = new_categories + ['year','month']
-            anomalies[f'{footfall}_z'] = anomalies[f'{footfall}_z'][new_categories]
+            if i > len(footfall_types)-1:
+                new_categories = new_categories + ['year','month',f'{footfall_type}_{agg}']
+            anomalies[f'{footfall_type}_z'] = anomalies[f'{footfall_type}_z'][new_categories]
 
         footfall_data = pd.merge(
             anomalies['residents_z'], anomalies['workers_z'],

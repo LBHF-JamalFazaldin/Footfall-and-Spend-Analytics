@@ -20,9 +20,9 @@ To set up the project locally, follow these steps:
 
    ```sh
 
-   git clone https://github.com/your-username/footfall-analytics.git
+   git clone https://github.com/JamalFazaldin/Footfall-Repo.git
 
-   cd footfall-analytics
+   cd Footfall-Repo
 
    ```
 
@@ -31,14 +31,6 @@ To set up the project locally, follow these steps:
    ```sh
 
    pip install -r requirements.txt
-
-   ```
-
-3. Run the application:
-
-   ```sh
-
-   python main.py
 
    ```
 
