@@ -104,7 +104,7 @@ def detect_anomalies(df, **kwargs):
             anomalies['is_anomaly?'],
             anomalies['moving_average'],anomalies[f'{footfall_type}_{agg}']
         )
-
+        anomalies.to_csv(f"C:\\Users\\jf79\\OneDrive - Office Shared Service\\Documents\\H&F Analysis\\Python CSV Repositry\\{footfall_type}.csv")
         print('Anomalies have been flagged and corrected.\n')
         return anomalies
     except Exception as e:
@@ -152,28 +152,29 @@ def agg_footfall_data(df, **kwargs):
         default_values = ['residents','workers','visitors']
         footfall_types = kwargs.get('footfall_type', default_values)
         std = kwargs.get('std',3)
-        anomalies = {}
+        corrected_dataframes = {}
         i = 0
         for footfall_type in footfall_types:
             if footfall_type not in default_values:
                 raise KeyError(f'Invalid footfall type: [{footfall_type}]')
         for footfall_type in footfall_types:
             i = i + 1
-            anomalies[f'{footfall_type}_z'] = detect_anomalies(
-                agg_data,footfall_type=footfall_type,std=std,agg=agg,
+            corrected_dataframes[f'{footfall_type}_z'] = detect_anomalies(
+                agg_data,footfall_type=footfall_type,
+                std=std,agg=agg,
                 day_night = kwargs.get('day_night', False),
                 primary_key=kwargs.get('primary_key', False)
             )
             if i > len(footfall_types)-1:
-                new_categories = new_categories + ['year','month',f'{footfall_type}_{agg}']
-            anomalies[f'{footfall_type}_z'] = anomalies[f'{footfall_type}_z'][new_categories]
-
+                new_categories = new_categories + ['year','month']
+            corrected_dataframes[f'{footfall_type}_z'] = corrected_dataframes[f'{footfall_type}_z'][new_categories]
+            
         footfall_data = pd.merge(
-            anomalies['residents_z'], anomalies['workers_z'],
+            corrected_dataframes['residents_z'], corrected_dataframes['workers_z'],
             how='left', on=merge_list,
             suffixes=['_residents','_workers']
         ).merge(
-            anomalies['visitors_z'],
+            corrected_dataframes['visitors_z'],
             how='left', on=merge_list,
         ).rename(columns={
                 'corrected_value':'corrected_value_visitors'
@@ -184,10 +185,11 @@ def agg_footfall_data(df, **kwargs):
         merge_list = [kwargs.get('day_night')] + merge_list if kwargs.get('day_night',False) else merge_list
         merge_list = [kwargs.get('primary_key')] + merge_list if kwargs.get('primary_key',False) else merge_list
         footfall_data['corrected_value_total'] = 0
-        for footfall in footfall_type:
-            footfall_data['corrected_value_total'] = footfall_data['corrected_value_total'] + footfall_data[f'corrected_value_{footfall}']
+        for footfall_type in footfall_types:
+            footfall_data['corrected_value_total'] = footfall_data['corrected_value_total'] + footfall_data[f'corrected_value_{footfall_type}']
         footfall_data['corrected_value_total'].fillna(0, inplace=True)
-
+        footfall_data.to_csv(r"C:\Users\jf79\OneDrive - Office Shared Service\Documents\H&F Analysis\Python CSV Repositry\footfall_data.csv")
+        
         print('Footfall Data Aggregated.\n')
         return footfall_data
     except Exception as e:
@@ -224,6 +226,7 @@ def typical_footfall(footfall_data, start, end, **kwargs):
 
     footfall_data = agg_footfall_data(
         footfall_data,
+        day_night=kwargs.get('day_night',False),
         primary_key=primary_key,
         agg=kwargs.get('agg', 'sum'),
         footfall_type=kwargs.get('footfall_type',['residents','workers','visitors'])
