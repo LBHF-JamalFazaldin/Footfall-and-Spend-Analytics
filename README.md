@@ -20,7 +20,7 @@ To set up the project locally, follow these steps:
 
    ```sh
 
-   git clone https://github.com/JamalFazaldin/Footfall-Repo.git
+   git clone https://github.com/JamalFazaldin/Footfall-and-Spend-Analytics.git
 
    cd Footfall-Repo
 
