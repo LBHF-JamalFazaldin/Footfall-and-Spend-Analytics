@@ -2,8 +2,18 @@ import pandas as pd
 import numpy as np
 from scipy.stats import zscore
 
-# Function to apply datetime features i.e dt.year, dayofweek, am/pm values.
 def apply_features(df, date='count_date', **kwargs):
+    """
+    Adds datetime-based features to a DataFrame, such as year, day of week, month, and optionally day/night classification.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame containing a date column.
+        date (str, optional): Name of the date column. Defaults to 'count_date'.
+        time (str, optional): Name of the time column for day/night mapping.
+
+    Returns:
+        pd.DataFrame: DataFrame with new feature columns added.d
+    """
     print('\nApplying features...')
     try:
         df[date] = pd.to_datetime(df[date])
@@ -48,8 +58,17 @@ def apply_features(df, date='count_date', **kwargs):
         print(f'Error applying features: {e}\n')
         return pd.DataFrame()
 
-# Function to pivot daynight values for a given dataset of aggregated footfall count to related am/pm fields for mapping purposes.
 def transform_to_daynight(df, **kwargs):
+    """
+    Pivots the DataFrame to separate day/night values for aggregated footfall counts.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with day_night and corrected_value_total columns.
+        primary_key (str, optional): Additional column to include in the index.
+
+    Returns:
+        pd.DataFrame: Pivoted DataFrame with day/night columns.
+    """
     print('\nTransforming to daynight...')
     try:
         primary_key = kwargs.get('primary_key',False)
@@ -66,8 +85,21 @@ def transform_to_daynight(df, **kwargs):
         print(f'Error transforming to daynight: {e}\n')
         return pd.DataFrame()
 
-# Function to detect anomalies within the footfall counts
 def detect_anomalies(df, **kwargs):
+    """
+    Detects anomalies in footfall counts using z-score and corrects them using a moving average.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with aggregated footfall counts.
+        footfall_type (str): Type of footfall ('residents', 'workers', 'visitors').
+        agg (str): Aggregation method used.
+        std (float, optional): Z-score threshold for anomaly detection. Defaults to 3.
+        day_night (str, optional): Column name for day/night classification.
+        primary_key (str, optional): Additional grouping column.
+
+    Returns:
+        pd.DataFrame: DataFrame with anomaly flags and corrected values.
+    """
     print('\nDetecting anomalies...')
     try:
         used_keys = {
@@ -111,8 +143,22 @@ def detect_anomalies(df, **kwargs):
         print(f'Error detecting anomalies: {e}\n')
         return pd.DataFrame()
 
-# Function to aggregate footfall counts based off a specified grouping/field and anomaly detection
 def agg_footfall_data(df, **kwargs):
+    """
+    Aggregates footfall counts by specified grouping fields and applies anomaly detection.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame with raw footfall counts.
+        primary_key (str, optional): Column to group by.
+        day_night (str, optional): Column for day/night classification.
+        std (float, optional): Z-score threshold for anomaly detection.
+        agg (str, optional): Aggregation method ('sum', 'mean', etc.).
+        footfall_type (list, optional): List of footfall types to aggregate.
+        time_indicator (str, optional): Name of the time indicator column.
+
+    Returns:
+        pd.DataFrame: Aggregated and corrected footfall data.
+    """
     print('\nAggregating footfall data...')
     try:
         used_keys = {
@@ -196,8 +242,23 @@ def agg_footfall_data(df, **kwargs):
         print(f'Error aggregating footfall data: {e}\n')
         return pd.DataFrame()
 
-# Function that encapsulates a variety of methods to output a desired aggregation of footfall counts for mapping purposes.
 def typical_footfall(footfall_data, start, end, **kwargs):
+    """
+    Calculates typical daily, weekday, and weekend footfall averages for mapping purposes.
+
+    Args:
+        footfall_data (pd.DataFrame): DataFrame containing footfall counts.
+        start (str or datetime): Start date for filtering.
+        end (str or datetime): End date for filtering.
+        primary_key (str, optional): Column to group by. Defaults to 'hex_id'.
+        time_indicator (str, optional): Name of the time indicator column.
+        day_night (str, optional): Column for day/night classification.
+        agg (str, optional): Aggregation method.
+        footfall_type (list, optional): List of footfall types to aggregate.
+
+    Returns:
+        dict: Dictionary containing DataFrames for typical, weekday, and weekend footfall.
+    """
     print('Calculating typical daily footfall...\nFor Weedays and Weekends and Weekly averages...\n')
     columns_to_drop = [
         'OID_','Col_ID','Row_ID','Hex_ID',
